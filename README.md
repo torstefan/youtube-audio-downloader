@@ -41,7 +41,7 @@ You can also explicitly set up dependencies without downloading any videos:
 ### Options
 
 - `--help`: Show help message
-- `--split`: Extract timestamps from video description and split audio into individual tracks
+- `--no-split`: Download audio only without extracting timestamps or splitting into tracks
 - `--setup`: Just install dependencies and exit
 - `--bitrate VALUE`: Set audio quality (128k, 192k, 256k, 320k). Default: 320k
 
@@ -57,9 +57,9 @@ Download audio to a specific directory:
 ./ytd_audio https://www.youtube.com/watch?v=dQw4w9WgXcQ ~/Music
 ```
 
-Download audio and split it into tracks based on timestamps in the video description:
+Download audio without splitting into tracks (just download the full file):
 ```
-./ytd_audio --split https://www.youtube.com/watch?v=dQw4w9WgXcQ
+./ytd_audio --no-split https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
 
 Download audio at a specific quality:

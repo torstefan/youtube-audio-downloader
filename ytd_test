@@ -342,7 +342,7 @@ fi
 echo -e "\n${YELLOW}All tests completed!${NC}"
 echo ""
 echo -e "If all tests passed, your YouTube Audio Downloader is ready to use."
-echo -e "Try it with: ${GREEN}./ytd_audio --split [URL]${NC}"
+echo -e "Try it with: ${GREEN}./ytd_audio [URL]${NC}"
 echo ""
 echo -e "If any test failed, run: ${YELLOW}./ytd_audio --setup${NC} to reinstall dependencies."
 echo ""

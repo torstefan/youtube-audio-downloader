@@ -316,24 +316,24 @@ def split_audio_by_timestamps(audio_file, timestamps, output_dir, bitrate="320k"
 def main():
     """Main entry point for the script."""
     if len(sys.argv) < 2:
-        print("Usage: ytd.py <youtube-url> [output-directory] [--split] [--bitrate BITRATE]", file=sys.stderr)
+        print("Usage: ytd.py <youtube-url> [output-directory] [--no-split] [--bitrate BITRATE]", file=sys.stderr)
         print("Options:", file=sys.stderr)
-        print("  --split           Extract timestamps from video description and split audio", file=sys.stderr)
+        print("  --no-split        Don't extract timestamps or split audio (download only)", file=sys.stderr)
         print("  --bitrate BITRATE Target MP3 bitrate (default: 320k)", file=sys.stderr)
         sys.exit(1)
     
     # Find the URL in the arguments (should be the first non-option argument)
     url = None
     output_dir = None
-    split_tracks = False
+    split_tracks = True  # Default to splitting
     bitrate = "320k"  # Default to high quality
     
     # Process arguments
     i = 1
     while i < len(sys.argv):
         arg = sys.argv[i]
-        if arg == '--split':
-            split_tracks = True
+        if arg == '--no-split':
+            split_tracks = False
             i += 1
         elif arg == '--bitrate' and i + 1 < len(sys.argv):
             bitrate = sys.argv[i + 1]
@@ -352,7 +352,7 @@ def main():
     
     if url is None:
         print("Error: No YouTube URL provided.", file=sys.stderr)
-        print("Usage: ytd.py <youtube-url> [output-directory] [--split] [--bitrate BITRATE]", file=sys.stderr)
+        print("Usage: ytd.py <youtube-url> [output-directory] [--no-split] [--bitrate BITRATE]", file=sys.stderr)
         sys.exit(1)
     
     # Download audio and get video info
