@@ -1,0 +1,302 @@
+#!/bin/bash
+# YTD Test - Test program for the YouTube audio downloader
+# This script tests all the requirements and functionality of the YouTube audio downloader
+
+# Colors for better readability
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Path to the virtual environment
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PATH="$SCRIPT_DIR/ytd/venv"
+SCRIPT_PATH="$SCRIPT_DIR/ytd/ytd.py"
+REQUIREMENTS=("yt-dlp" "pydub" "regex")
+TEST_URL="https://www.youtube.com/watch?v=YE7VzlLtp-4" # Big Buck Bunny (short creative commons video)
+TEST_DIR="$SCRIPT_DIR/test_output"
+
+# Print header
+echo -e "${YELLOW}==============================================${NC}"
+echo -e "${YELLOW}   YouTube Audio Downloader Test Program     ${NC}"
+echo -e "${YELLOW}==============================================${NC}"
+echo ""
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to print test result
+print_result() {
+    local test_name="$1"
+    local status="$2"
+    local message="$3"
+    
+    printf "%-40s" "$test_name"
+    
+    if [ "$status" = "pass" ]; then
+        echo -e "[${GREEN}PASS${NC}]"
+    elif [ "$status" = "warn" ]; then
+        echo -e "[${YELLOW}WARN${NC}]"
+        if [ -n "$message" ]; then
+            echo -e "  ${YELLOW}$message${NC}"
+        fi
+    else
+        echo -e "[${RED}FAIL${NC}]"
+        if [ -n "$message" ]; then
+            echo -e "  ${RED}$message${NC}"
+        fi
+    fi
+}
+
+# Clean up test directory if it exists
+if [ -d "$TEST_DIR" ]; then
+    rm -rf "$TEST_DIR"
+fi
+mkdir -p "$TEST_DIR"
+
+echo -e "${YELLOW}System Requirements${NC}"
+echo -e "${YELLOW}------------------${NC}"
+
+# Check if Python is installed
+python_version=$(python3 --version 2>/dev/null)
+if command_exists python3; then
+    print_result "Python 3 installation" "pass"
+    echo "  Found: $python_version"
+else
+    print_result "Python 3 installation" "fail" "Python 3 is not installed"
+    exit 1
+fi
+
+# Check if ffmpeg is installed
+if command_exists ffmpeg; then
+    ffmpeg_version=$(ffmpeg -version | head -n1 | awk '{print $3}')
+    print_result "FFmpeg installation" "pass"
+    echo "  Found: FFmpeg version $ffmpeg_version"
+else
+    print_result "FFmpeg installation" "fail" "FFmpeg is not installed"
+    exit 1
+fi
+
+# Check if venv is available
+if python3 -c "import venv" &>/dev/null; then
+    print_result "Python venv module" "pass"
+else
+    print_result "Python venv module" "fail" "Python venv module is not available"
+    exit 1
+fi
+
+echo -e "\n${YELLOW}Virtual Environment${NC}"
+echo -e "${YELLOW}------------------${NC}"
+
+# Check if virtual environment exists
+if [ -d "$VENV_PATH" ]; then
+    print_result "Virtual environment" "pass"
+else
+    print_result "Virtual environment" "fail" "Virtual environment not found at $VENV_PATH"
+    echo -e "\nRun ${YELLOW}./ytd_audio --setup${NC} to create the virtual environment."
+    exit 1
+fi
+
+# Check if Python binary exists in venv
+if [ -f "$VENV_PATH/bin/python" ]; then
+    print_result "Python in virtual environment" "pass"
+else
+    print_result "Python in virtual environment" "fail" "Python binary not found in virtual environment"
+    exit 1
+fi
+
+# Check if pip binary exists in venv
+if [ -f "$VENV_PATH/bin/pip" ]; then
+    print_result "Pip in virtual environment" "pass"
+else
+    print_result "Pip in virtual environment" "fail" "Pip binary not found in virtual environment"
+    exit 1
+fi
+
+echo -e "\n${YELLOW}Python Dependencies${NC}"
+echo -e "${YELLOW}------------------${NC}"
+
+# Check for each required dependency
+all_deps_installed=true
+for req in "${REQUIREMENTS[@]}"; do
+    if "$VENV_PATH/bin/pip" show "$req" &>/dev/null; then
+        ver=$("$VENV_PATH/bin/pip" show "$req" | grep "Version:" | awk '{print $2}')
+        print_result "$req package" "pass" 
+        echo "  Found: $req version $ver"
+    else
+        print_result "$req package" "fail" "$req is not installed in the virtual environment"
+        all_deps_installed=false
+    fi
+done
+
+if [ "$all_deps_installed" = false ]; then
+    echo -e "\nRun ${YELLOW}./ytd_audio --setup${NC} to install missing dependencies."
+    exit 1
+fi
+
+echo -e "\n${YELLOW}Script Tests${NC}"
+echo -e "${YELLOW}------------${NC}"
+
+# Check if main script exists
+if [ -f "$SCRIPT_PATH" ]; then
+    print_result "Main script" "pass"
+else
+    print_result "Main script" "fail" "Main script not found at $SCRIPT_PATH"
+    exit 1
+fi
+
+# Check if main script is executable
+if [ -x "$SCRIPT_PATH" ]; then
+    print_result "Script is executable" "pass"
+else
+    print_result "Script is executable" "warn" "Main script is not executable, fixing..."
+    chmod +x "$SCRIPT_PATH"
+fi
+
+# Check if wrapper script is executable
+if [ -x "$SCRIPT_DIR/ytd_audio" ]; then
+    print_result "Wrapper script is executable" "pass"
+else
+    print_result "Wrapper script is executable" "warn" "Wrapper script is not executable, fixing..."
+    chmod +x "$SCRIPT_DIR/ytd_audio"
+fi
+
+# Check module imports in Python
+echo -e "\n${YELLOW}Python Module Tests${NC}"
+echo -e "${YELLOW}------------------${NC}"
+
+# Test importing pydub
+import_test=$("$VENV_PATH/bin/python" -c "
+try:
+    from pydub import AudioSegment
+    print('Module pydub imported successfully')
+except ImportError as e:
+    print(f'Error: {e}')
+    exit(1)
+" 2>&1)
+
+if [[ "$import_test" == *"imported successfully"* ]]; then
+    print_result "Import pydub module" "pass"
+else
+    print_result "Import pydub module" "fail" "$import_test"
+    exit 1
+fi
+
+# Test importing regex
+import_test=$("$VENV_PATH/bin/python" -c "
+try:
+    import regex
+    print('Module regex imported successfully')
+except ImportError as e:
+    print(f'Error: {e}')
+    exit(1)
+" 2>&1)
+
+if [[ "$import_test" == *"imported successfully"* ]]; then
+    print_result "Import regex module" "pass"
+else
+    print_result "Import regex module" "fail" "$import_test"
+    exit 1
+fi
+
+# Test timestamp extraction function
+echo -e "\n${YELLOW}Function Tests${NC}"
+echo -e "${YELLOW}-------------${NC}"
+
+timestamp_test=$("$VENV_PATH/bin/python" -c "
+import sys
+sys.path.append('$SCRIPT_DIR/ytd')
+try:
+    from ytd import extract_timestamps
+    
+    # Test cases
+    test_desc = '''
+00:00 Introduction
+01:23 First part
+12:34 Second part
+1:01:00 Final part
+    '''
+    
+    timestamps = extract_timestamps(test_desc)
+    if len(timestamps) == 4:
+        print(f'Found {len(timestamps)} timestamps correctly')
+        exit(0)
+    else:
+        print(f'Found incorrect number of timestamps: {len(timestamps)}')
+        exit(1)
+except Exception as e:
+    print(f'Error: {e}')
+    exit(1)
+" 2>&1)
+
+if [[ "$timestamp_test" == *"Found 4 timestamps correctly"* ]]; then
+    print_result "Timestamp extraction function" "pass"
+else
+    print_result "Timestamp extraction function" "fail" "$timestamp_test"
+fi
+
+# Test audio processing (creating a simple WAV file and loading it)
+audio_test=$("$VENV_PATH/bin/python" -c "
+try:
+    from pydub import AudioSegment
+    from pydub.generators import Sine
+    import os
+    
+    # Create test directory if it doesn't exist
+    test_dir = '$TEST_DIR'
+    os.makedirs(test_dir, exist_ok=True)
+    
+    # Generate a simple 1-second 440 Hz sine wave
+    sine = Sine(440)
+    sine_wav = sine.to_audio_segment(duration=1000)
+    
+    # Save it to a file
+    test_file = os.path.join(test_dir, 'test_tone.wav')
+    sine_wav.export(test_file, format='wav')
+    
+    # Try to load it back
+    loaded = AudioSegment.from_file(test_file, format='wav')
+    
+    # Check if it has the right duration
+    if abs(len(loaded) - 1000) < 10:  # Allow for small differences
+        print('Audio processing works correctly')
+        exit(0)
+    else:
+        print(f'Audio has incorrect duration: {len(loaded)} ms')
+        exit(1)
+except Exception as e:
+    print(f'Error: {e}')
+    exit(1)
+" 2>&1)
+
+if [[ "$audio_test" == *"Audio processing works correctly"* ]]; then
+    print_result "Audio processing functionality" "pass"
+else
+    print_result "Audio processing functionality" "fail" "$audio_test"
+fi
+
+# Test yt-dlp executable
+ytdlp_test=$("$VENV_PATH/bin/yt-dlp" --version 2>&1)
+exit_code=$?
+
+if [ $exit_code -eq 0 ]; then
+    print_result "yt-dlp executable" "pass"
+    echo "  Found: yt-dlp version $ytdlp_test"
+else
+    print_result "yt-dlp executable" "fail" "yt-dlp command failed: $ytdlp_test"
+fi
+
+echo -e "\n${YELLOW}All tests completed!${NC}"
+echo ""
+echo -e "If all tests passed, your YouTube Audio Downloader is ready to use."
+echo -e "Try it with: ${GREEN}./ytd_audio --split [URL]${NC}"
+echo ""
+echo -e "If any test failed, run: ${YELLOW}./ytd_audio --setup${NC} to reinstall dependencies."
+echo ""
+
+# Clean up test directory
+rm -rf "$TEST_DIR"
+
+exit 0

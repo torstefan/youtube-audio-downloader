@@ -1,0 +1,137 @@
+#!/bin/bash
+# YTD Audio - Wrapper script for the YouTube audio downloader
+
+# Path to the virtual environment
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_PATH="$SCRIPT_DIR/ytd/venv"
+SCRIPT_PATH="$SCRIPT_DIR/ytd/ytd.py"
+REQUIREMENTS=("yt-dlp" "pydub" "regex")
+
+function show_help {
+    echo "YouTube Audio Downloader"
+    echo ""
+    echo "Usage: ytd_audio [OPTIONS] <youtube-url> [output-directory]"
+    echo ""
+    echo "Options:"
+    echo "  --help           Show this help message"
+    echo "  --split          Extract timestamps from video description and split audio into tracks"
+    echo "  --setup          Just set up dependencies and exit"
+    echo "  --bitrate VALUE  Set audio quality (128k, 192k, 256k, 320k). Default: 320k"
+    echo ""
+    echo "Examples:"
+    echo "  ytd_audio https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    echo "  ytd_audio https://www.youtube.com/watch?v=dQw4w9WgXcQ ~/Music"
+    echo "  ytd_audio --split https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    echo "  ytd_audio --bitrate 192k https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    echo ""
+}
+
+# Check for help flag
+if [[ "$1" == "--help" ]]; then
+    show_help
+    exit 0
+fi
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Check if python3 is installed
+if ! command_exists python3; then
+    echo "Error: Python 3 is required but not installed."
+    echo "Please install Python 3 and try again."
+    exit 1
+fi
+
+# Check if ffmpeg is installed (required for audio processing)
+if ! command_exists ffmpeg; then
+    echo "Warning: ffmpeg is not installed. It is required for audio processing."
+    echo "Installing ffmpeg..."
+    if command_exists apt-get; then
+        sudo apt-get update && sudo apt-get install -y ffmpeg
+    elif command_exists yum; then
+        sudo yum install -y ffmpeg
+    elif command_exists brew; then
+        brew install ffmpeg
+    else
+        echo "Error: Could not install ffmpeg automatically."
+        echo "Please install ffmpeg manually and try again."
+        exit 1
+    fi
+fi
+
+# Function to set up the virtual environment and install dependencies
+setup_environment() {
+    echo "Setting up YouTube Audio Downloader..."
+    
+    # Check if venv module is available
+    if ! python3 -c "import venv" &>/dev/null; then
+        echo "Python venv module is not available. Installing..."
+        if command_exists apt-get; then
+            sudo apt-get update && sudo apt-get install -y python3-venv
+        elif command_exists yum; then
+            sudo yum install -y python3-venv
+        else
+            echo "Error: Could not install python3-venv automatically."
+            echo "Please install the Python venv module manually and try again."
+            exit 1
+        fi
+    fi
+    
+    # Create virtual environment if it doesn't exist
+    if [ ! -d "$VENV_PATH" ]; then
+        echo "Creating virtual environment..."
+        python3 -m venv "$VENV_PATH"
+    fi
+    
+    # Install required packages
+    echo "Installing required packages..."
+    "$VENV_PATH/bin/pip" install --upgrade pip
+    for req in "${REQUIREMENTS[@]}"; do
+        echo "Installing $req..."
+        "$VENV_PATH/bin/pip" install "$req"
+    done
+    
+    echo "Setup completed successfully!"
+}
+
+# Check if we just need to set up
+if [[ "$1" == "--setup" ]]; then
+    setup_environment
+    exit 0
+fi
+
+# Check if virtual environment exists, if not create it
+if [ ! -d "$VENV_PATH" ]; then
+    echo "Virtual environment not found. Setting up now..."
+    setup_environment
+fi
+
+# Check if all required packages are installed
+MISSING_PACKAGES=()
+for req in "${REQUIREMENTS[@]}"; do
+    if ! "$VENV_PATH/bin/pip" show "$req" &>/dev/null; then
+        MISSING_PACKAGES+=("$req")
+    fi
+done
+
+# Install any missing packages
+if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
+    echo "Some required packages are missing. Installing now..."
+    for pkg in "${MISSING_PACKAGES[@]}"; do
+        echo "Installing $pkg..."
+        "$VENV_PATH/bin/pip" install "$pkg"
+    done
+fi
+
+# Use the venv directly to run the script
+echo "Running YouTube Audio Downloader with Python from virtual environment..."
+
+# Set the YTDLP_BIN environment variable to help the script find it
+export YTDLP_BIN="$VENV_PATH/bin/yt-dlp"
+echo "Setting yt-dlp path to: $YTDLP_BIN"
+
+# Run the script with the venv interpreter
+"$VENV_PATH/bin/python" "$SCRIPT_PATH" "$@"
+exit $?
