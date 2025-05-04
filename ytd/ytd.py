@@ -258,7 +258,7 @@ def download_audio_with_info(url, output_dir=None, bitrate="320k"):
         print(f"Error downloading audio or getting video info: {e}", file=sys.stderr)
         return None, None, None
 
-def split_audio_by_timestamps(audio_file, timestamps, output_dir):
+def split_audio_by_timestamps(audio_file, timestamps, output_dir, bitrate="320k"):
     """
     Split audio file according to timestamps.
     
@@ -266,6 +266,7 @@ def split_audio_by_timestamps(audio_file, timestamps, output_dir):
         audio_file (str): Path to the audio file
         timestamps (list): List of (time_ms, track_name) tuples
         output_dir (str): Directory to save the split files
+        bitrate (str, optional): Target MP3 bitrate for the split files. Defaults to "320k".
     
     Returns:
         list: List of created files
@@ -304,8 +305,8 @@ def split_audio_by_timestamps(audio_file, timestamps, output_dir):
         track_number = f"{i+1:02d}"
         output_file = output_dir / f"{track_number} - {safe_track_name}.mp3"
         
-        # Export segment to file
-        segment.export(str(output_file), format="mp3")
+        # Export segment to file with the specified bitrate
+        segment.export(str(output_file), format="mp3", bitrate=bitrate)
         created_files.append(str(output_file))
         
         print(f"Created: {output_file}")
@@ -373,7 +374,9 @@ def main():
         
         if timestamps:
             print(f"Found {len(timestamps)} timestamps in the video description.")
-            split_files = split_audio_by_timestamps(audio_file, timestamps, tracks_dir)
+            # Pass the same bitrate used for downloading to the splitting function
+            print(f"Splitting tracks with bitrate: {bitrate}")
+            split_files = split_audio_by_timestamps(audio_file, timestamps, tracks_dir, bitrate)
             
             if split_files:
                 print(f"Successfully split audio into {len(split_files)} tracks in: {tracks_dir}")
